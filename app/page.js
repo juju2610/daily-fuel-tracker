@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { STATIONS, SHELL_CARDS, QUOTA_START_MONTH, SUBSIDY_GROUPS, currentMonthStr, computeSubsidySplits } from "../lib/fuelData";
 import { useLanguage } from "../lib/i18n";
+import { useTheme } from "../lib/theme";
 
 export default function Page(){
   const { toggleLang, t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
 
   const [entries, setEntries] = useState([]);
   const [quotas, setQuotas] = useState({});
@@ -303,11 +305,12 @@ export default function Page(){
   }
 
   return (
-    <div className="wrap cute">
+    <div className={"wrap" + (theme === "cute" ? " cute" : "")}>
       <header>
         <div className="brand-row">
           <img src="https://cdn1.npcdn.net/images/np_24894_1690338503.png" alt="Tek Wee logo" className="brand-logo" />
           <div className="brand-name">TEK WEE HARDWARE &amp; LOGISTIC SDN BHD</div>
+          <button className="lang-toggle" onClick={toggleTheme}>{theme === "cute" ? t("themeToggleToPro") : t("themeToggleToCute")}</button>
           <button className="lang-toggle" onClick={toggleLang}>{t("langToggle")}</button>
         </div>
         <div className="eyebrow">{t("eyebrowMain")}</div>
