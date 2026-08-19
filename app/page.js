@@ -303,7 +303,7 @@ export default function Page(){
   }
 
   return (
-    <div className="wrap">
+    <div className="wrap cute">
       <header>
         <div className="brand-row">
           <img src="https://cdn1.npcdn.net/images/np_24894_1690338503.png" alt="Tek Wee logo" className="brand-logo" />
