@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { QUOTA_START_MONTH, SUBSIDY_GROUPS, SHELL_CARDS, currentMonthStr, computeSubsidySplits } from "../../lib/fuelData";
+import { QUOTA_START_MONTH, SUBSIDY_GROUPS, currentMonthStr, computeSubsidySplits } from "../../lib/fuelData";
+import { useLanguage } from "../../lib/i18n";
 
 export default function ViewerPage(){
+  const { toggleLang, t } = useLanguage();
+
   const [entries, setEntries] = useState([]);
   const [quotas, setQuotas] = useState({});
   const [loading, setLoading] = useState(true);
@@ -105,7 +108,7 @@ export default function ViewerPage(){
   const beforeStart = mMonth < QUOTA_START_MONTH;
 
   function exportCSV(){
-    if(filtered.length === 0){ alert("No records to export."); return; }
+    if(filtered.length === 0){ alert(t("alertNoRecordsExport")); return; }
     const header = "Date,No Lorry,Station,Litre,Subsidy Usage,Extra Usage After Subsidy";
     const rows = filtered.map(e => {
       const sp = splits[e.id] || { subsidyUsage: 0, extraUsage: e.litre };
@@ -164,27 +167,28 @@ export default function ViewerPage(){
         <div className="brand-row">
           <img src="https://cdn1.npcdn.net/images/np_24894_1690338503.png" alt="Tek Wee logo" className="brand-logo" />
           <div className="brand-name">TEK WEE HARDWARE &amp; LOGISTIC SDN BHD</div>
+          <button className="lang-toggle" onClick={toggleLang}>{t("langToggle")}</button>
         </div>
-        <div className="eyebrow">Fleet Fuel Log — Viewer</div>
-        <h1>Lorry Fuel Tracker</h1>
-        <p className="sub">Read-only overview of fuel usage, daily totals, and monthly subsidy balances.</p>
+        <div className="eyebrow">{t("eyebrowViewer")}</div>
+        <h1>{t("appTitle")}</h1>
+        <p className="sub">{t("subViewer")}</p>
       </header>
 
-      {error && <div className="banner error">Could not reach the database: {error}</div>}
-      {loading && <div className="banner info">Loading…</div>}
+      {error && <div className="banner error">{t("dbError", { msg: error })}</div>}
+      {loading && <div className="banner info">{t("loading")}</div>}
 
       <div className="card">
-        <h2><span className="n">1</span> Summary <span className="tag">— all records</span></h2>
+        <h2><span className="n">1</span> {t("summaryTitle")} <span className="tag">{t("allRecords")}</span></h2>
         <div className="summary-grid">
-          <div className="stat"><div className="label">Total Litre</div><div className="value">{summary.total.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Entries</div><div className="value">{summary.count}</div></div>
-          <div className="stat"><div className="label">Average / Entry</div><div className="value">{summary.avg.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Lorries Involved</div><div className="value">{summary.lorryCount}</div></div>
+          <div className="stat"><div className="label">{t("totalLitre")}</div><div className="value">{summary.total.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("entries")}</div><div className="value">{summary.count}</div></div>
+          <div className="stat"><div className="label">{t("avgPerEntry")}</div><div className="value">{summary.avg.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("lorriesInvolved")}</div><div className="value">{summary.lorryCount}</div></div>
         </div>
 
         {byStation.rows.length > 0 && (
           <div className="breakdown">
-            <div className="breakdown-title">By Station / Card</div>
+            <div className="breakdown-title">{t("byStationCard")}</div>
             {byStation.rows.map(([label, val]) => (
               <div className="bar-row" key={label}>
                 <div className="bar-label" title={label}>{label}</div>
@@ -196,7 +200,7 @@ export default function ViewerPage(){
         )}
         {byLorry.rows.length > 0 && (
           <div className="breakdown">
-            <div className="breakdown-title">By Lorry</div>
+            <div className="breakdown-title">{t("byLorry")}</div>
             {byLorry.rows.map(([label, val]) => (
               <div className="bar-row" key={label}>
                 <div className="bar-label" title={label}>{label}</div>
@@ -209,43 +213,43 @@ export default function ViewerPage(){
       </div>
 
       <div className="card">
-        <h2><span className="n">2</span> Daily Usage &amp; Subsidy Balance <span className="tag">— renews every month, per card/station</span></h2>
+        <h2><span className="n">2</span> {t("dailyUsageTitle")} <span className="tag">{t("renewsMonthly")}</span></h2>
         <div className="form-grid" style={{marginBottom:16}}>
           <div className="field">
-            <label htmlFor="m-month">Month</label>
+            <label htmlFor="m-month">{t("month")}</label>
             <input type="month" id="m-month" value={mMonth} onChange={e => setMMonth(e.target.value || currentMonthStr())} />
           </div>
           <div className="field">
-            <label htmlFor="m-lorry">Lorry (for daily table)</label>
+            <label htmlFor="m-lorry">{t("lorryForDaily")}</label>
             <select id="m-lorry" value={mLorry} onChange={e => setMLorry(e.target.value)}>
-              <option value="">All lorries (combined)</option>
+              <option value="">{t("allLorriesCombined")}</option>
               {allLorries.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
         </div>
 
         <div className="summary-grid" style={{marginBottom:16}}>
-          <div className="stat"><div className="label">Used This Month</div><div className="value">{monthData.monthTotal.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Days With Usage</div><div className="value">{monthData.days.length}</div></div>
-          <div className="stat"><div className="label">Avg / Day Used</div><div className="value">{(monthData.days.length ? monthData.monthTotal/monthData.days.length : 0).toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("usedThisMonth")}</div><div className="value">{monthData.monthTotal.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("daysWithUsage")}</div><div className="value">{monthData.days.length}</div></div>
+          <div className="stat"><div className="label">{t("avgPerDay")}</div><div className="value">{(monthData.days.length ? monthData.monthTotal/monthData.days.length : 0).toFixed(2)} L</div></div>
         </div>
 
-        <div className="breakdown-title">Daily Count (Litre per Day)</div>
+        <div className="breakdown-title">{t("dailyCountTitle")}</div>
         <table style={{marginBottom:20}}>
-          <thead><tr><th>Date</th><th>Litre Used</th></tr></thead>
+          <thead><tr><th>{t("date")}</th><th>{t("litreUsed")}</th></tr></thead>
           <tbody>
             {monthData.days.map(d => (
               <tr key={d}><td>{d}</td><td className="num">{monthData.byDay[d].toFixed(2)} L</td></tr>
             ))}
           </tbody>
         </table>
-        {monthData.days.length === 0 && <div className="empty-state">No usage recorded for this month.</div>}
+        {monthData.days.length === 0 && <div className="empty-state">{t("noUsageThisMonth")}</div>}
 
-        <div className="breakdown-title">Monthly Subsidy Balance — by Company Station (Card)</div>
-        <p className="sub" style={{marginBottom:4}}>BHP SN &amp; BHP SR are combined into one shared BHP line, and the 9 plate-numbered cards are combined into one shared Shell line.</p>
-        {beforeStart && <p className="sub" style={{marginBottom:12,color:"var(--clay-dark)"}}>Note: quotas shown are the June 2026 starting values — this selected month is before June 2026.</p>}
+        <div className="breakdown-title">{t("monthlySubsidyTitle")}</div>
+        <p className="sub" style={{marginBottom:4}}>{t("subsidyDescViewer")}</p>
+        {beforeStart && <p className="sub" style={{marginBottom:12,color:"var(--clay-dark)"}}>{t("beforeStartNote")}</p>}
         <table>
-          <thead><tr><th>Station / Card</th><th>Type</th><th>Quota (L/month)</th><th>Used This Month</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th>{t("stationCard")}</th><th>{t("typeCol")}</th><th>{t("quotaCol")}</th><th>{t("usedThisMonth")}</th><th>{t("balanceCol")}</th><th>{t("statusCol")}</th></tr></thead>
           <tbody>
             {subsidyData.map(row => {
               const over = row.balance < 0;
@@ -256,14 +260,14 @@ export default function ViewerPage(){
                   <td className="num">{row.quota.toFixed(2)} L</td>
                   <td className="num">{row.used.toFixed(2)} L</td>
                   <td className={"num" + (over ? " over" : "")}>{row.balance.toFixed(2)} L</td>
-                  <td><span className={"status-pill" + (over ? " over" : "")}>{over ? "OVER LIMIT" : "OK"}</span></td>
+                  <td><span className={"status-pill" + (over ? " over" : "")}>{over ? t("overLimit") : t("ok")}</span></td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr style={{fontWeight:700, background:"#efece2"}}>
-              <td>TOTAL LITER</td>
+              <td>{t("totalLiter")}</td>
               <td></td>
               <td className="num">{subsidyTotals.totalQuota.toFixed(2)} L</td>
               <td className="num">{subsidyTotals.totalUsed.toFixed(2)} L</td>
@@ -275,32 +279,32 @@ export default function ViewerPage(){
       </div>
 
       <div className="card">
-        <h2><span className="n">3</span> Records</h2>
+        <h2><span className="n">3</span> {t("recordsTitle")}</h2>
         <div className="form-grid" style={{marginBottom:14}}>
           <div className="field">
-            <label htmlFor="r-date">Jump to date</label>
+            <label htmlFor="r-date">{t("jumpToDate")}</label>
             <input type="date" id="r-date" value={rDate} onChange={e => { setRDate(e.target.value); if(e.target.value) setRMonth(""); }} />
           </div>
           <div className="field">
-            <label htmlFor="r-month">Jump to month</label>
+            <label htmlFor="r-month">{t("jumpToMonth")}</label>
             <input type="month" id="r-month" value={rMonth} onChange={e => { setRMonth(e.target.value); if(e.target.value) setRDate(""); }} />
           </div>
           <div className="field">
-            <button className="btn-ghost" style={{width:"100%"}} onClick={clearRecordQuickFilter} disabled={!rDate && !rMonth}>Clear date/month</button>
+            <button className="btn-ghost" style={{width:"100%"}} onClick={clearRecordQuickFilter} disabled={!rDate && !rMonth}>{t("clearDateMonth")}</button>
           </div>
         </div>
         <div className="toolbar">
-          <div className="count">{filtered.length} of {entries.length} entries</div>
+          <div className="count">{t("ofEntries", { filtered: filtered.length, total: entries.length })}</div>
           <div className="toolbar-actions">
-            <button className="btn-excel" onClick={exportExcel}>Export Excel ↓</button>
-            <button className="btn-ghost" onClick={exportCSV}>Export CSV ↓</button>
+            <button className="btn-excel" onClick={exportExcel}>{t("exportExcel")}</button>
+            <button className="btn-ghost" onClick={exportCSV}>{t("exportCSV")}</button>
           </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>No Lorry</th><th>Station</th><th>Litre</th>
-              <th>Subsidy Usage (L)</th><th>Extra Usage After Subsidy (L)</th>
+              <th>{t("date")}</th><th>{t("noLorryCol")}</th><th>{t("stationCol")}</th><th>{t("litreCol")}</th>
+              <th>{t("subsidyUsageCol")}</th><th>{t("extraUsageCol")}</th>
             </tr>
           </thead>
           <tbody>
@@ -320,18 +324,18 @@ export default function ViewerPage(){
           </tbody>
           <tfoot>
             <tr style={{fontWeight:700, background:"#efece2"}}>
-              <td colSpan={3}>TOTAL</td>
+              <td colSpan={3}>{t("total")}</td>
               <td className="num">{totals.sumLitre.toFixed(2)} L</td>
               <td className="num">{totals.sumSubsidy.toFixed(2)} L</td>
               <td className="num">{totals.sumExtra.toFixed(2)} L</td>
             </tr>
           </tfoot>
         </table>
-        {filtered.length === 0 && <div className="empty-state">No records match your filters.</div>}
+        {filtered.length === 0 && <div className="empty-state">{t("noRecordsMatch")}</div>}
       </div>
 
       <footer>
-        All figures are self-reported entries stored in a shared Supabase database. This is a read-only view.
+        {t("footerViewer")}
       </footer>
     </div>
   );

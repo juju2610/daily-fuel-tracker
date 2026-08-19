@@ -22,7 +22,9 @@ body{
 header{margin-bottom:20px;}
 .brand-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .brand-logo{height:44px;width:auto;flex-shrink:0;}
-.brand-name{font-weight:800;font-size:14px;color:var(--ink);letter-spacing:.01em;line-height:1.3;}
+.brand-name{font-weight:800;font-size:14px;color:var(--ink);letter-spacing:.01em;line-height:1.3;flex:1;}
+.lang-toggle{background:var(--card);color:var(--moss);border:1px solid var(--line);padding:7px 14px;border-radius:20px;font-weight:700;font-size:12.5px;flex-shrink:0;}
+.lang-toggle:hover{border-color:var(--moss);background:#eef1ec;}
 .eyebrow{
   font-family:var(--mono);
   font-size:11px;

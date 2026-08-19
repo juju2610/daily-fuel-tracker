@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { STATIONS, SHELL_CARDS, QUOTA_START_MONTH, SUBSIDY_GROUPS, currentMonthStr, computeSubsidySplits } from "../lib/fuelData";
+import { useLanguage } from "../lib/i18n";
 
 export default function Page(){
+  const { toggleLang, t } = useLanguage();
+
   const [entries, setEntries] = useState([]);
   const [quotas, setQuotas] = useState({});
   const [loading, setLoading] = useState(true);
@@ -67,14 +70,14 @@ export default function Page(){
   async function addEntry(){
     const lorry = inLorry.trim();
     const litre = parseFloat(inLitre);
-    if(!lorry){ alert("Please enter the lorry number."); return; }
-    if(!inDate){ alert("Please select a date."); return; }
-    if(!litre || litre <= 0){ alert("Please enter a valid litre amount."); return; }
+    if(!lorry){ alert(t("alertNoLorry")); return; }
+    if(!inDate){ alert(t("alertNoDate")); return; }
+    if(!litre || litre <= 0){ alert(t("alertInvalidLitre")); return; }
 
     setBusy(true);
     const { error: insErr } = await supabase.from("entries").insert({ station: inStation, lorry, date: inDate, litre });
     setBusy(false);
-    if(insErr){ alert("Could not save entry: " + insErr.message); return; }
+    if(insErr){ alert(t("alertSaveEntryError", { msg: insErr.message })); return; }
 
     setInLorry("");
     setInLitre("");
@@ -85,17 +88,17 @@ export default function Page(){
     setBusy(true);
     const { error: delErr } = await supabase.from("entries").delete().eq("id", id);
     setBusy(false);
-    if(delErr){ alert("Could not delete entry: " + delErr.message); return; }
+    if(delErr){ alert(t("alertDeleteEntryError", { msg: delErr.message })); return; }
     loadAll();
   }
 
   async function clearAllData(){
     if(entries.length === 0) return;
-    if(!confirm("Delete all fuel log entries? This cannot be undone.")) return;
+    if(!confirm(t("confirmClearAll"))) return;
     setBusy(true);
     const { error: delErr } = await supabase.from("entries").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     setBusy(false);
-    if(delErr){ alert("Could not clear entries: " + delErr.message); return; }
+    if(delErr){ alert(t("alertClearAllError", { msg: delErr.message })); return; }
     loadAll();
   }
 
@@ -177,19 +180,19 @@ export default function Page(){
     const quota = (isNaN(v) || v < 0) ? 0 : v;
     setQuotas(prev => ({ ...prev, [groupId]: quota }));
     const { error: upErr } = await supabase.from("quotas").upsert({ group_id: groupId, quota, updated_at: new Date().toISOString() });
-    if(upErr){ alert("Could not save quota: " + upErr.message); loadAll(); }
+    if(upErr){ alert(t("alertSaveQuotaError", { msg: upErr.message })); loadAll(); }
   }
 
   const scopeParts = [];
   if(fStation) scopeParts.push(fStation);
   if(fLorry) scopeParts.push(fLorry);
   if(fFrom || fTo) scopeParts.push(`${fFrom||"…"} → ${fTo||"…"}`);
-  const summaryScope = scopeParts.length ? "— " + scopeParts.join(" · ") : "— all records";
+  const summaryScope = scopeParts.length ? "— " + scopeParts.join(" · ") : t("allRecords");
 
   const beforeStart = mMonth < QUOTA_START_MONTH;
 
   function exportCSV(){
-    if(filtered.length === 0){ alert("No records to export."); return; }
+    if(filtered.length === 0){ alert(t("alertNoRecordsExport")); return; }
     const header = "Date,No Lorry,Station,Litre,Subsidy Usage,Extra Usage After Subsidy";
     const rows = filtered.map(e => {
       const sp = splits[e.id] || { subsidyUsage: 0, extraUsage: e.litre };
@@ -266,10 +269,10 @@ export default function Page(){
     reader.onload = async function(e){
       let data;
       try{ data = JSON.parse(e.target.result); }
-      catch(err){ alert("Could not read this file — it doesn't look like a valid backup (.json) file."); event.target.value = ""; return; }
-      if(!data || !Array.isArray(data.entries)){ alert("This file doesn't look like a valid fuel tracker backup."); event.target.value = ""; return; }
+      catch(err){ alert(t("alertInvalidBackupFile")); event.target.value = ""; return; }
+      if(!data || !Array.isArray(data.entries)){ alert(t("alertInvalidBackupContent")); event.target.value = ""; return; }
 
-      if(!confirm(`This backup has ${data.entries.length} entries. They will be added to your current cloud data (existing entries are kept; nothing is deleted). Continue?`)){
+      if(!confirm(t("confirmImportBackup", { count: data.entries.length }))){
         event.target.value = "";
         return;
       }
@@ -282,7 +285,7 @@ export default function Page(){
       for(let i = 0; i < toInsert.length; i += 500){
         const chunk = toInsert.slice(i, i + 500);
         const { error: insErr } = await supabase.from("entries").insert(chunk);
-        if(insErr){ alert("Import failed partway through: " + insErr.message); setBusy(false); event.target.value = ""; loadAll(); return; }
+        if(insErr){ alert(t("alertImportPartialFail", { msg: insErr.message })); setBusy(false); event.target.value = ""; loadAll(); return; }
       }
 
       if(data.quotas){
@@ -292,10 +295,10 @@ export default function Page(){
 
       setBusy(false);
       await loadAll();
-      alert(`Imported ${toInsert.length} entries.`);
+      alert(t("alertImportSuccess", { count: toInsert.length }));
       event.target.value = "";
     };
-    reader.onerror = function(){ alert("Could not read this file. Please try again."); event.target.value = ""; };
+    reader.onerror = function(){ alert(t("alertReadFileError")); event.target.value = ""; };
     reader.readAsText(file);
   }
 
@@ -305,107 +308,108 @@ export default function Page(){
         <div className="brand-row">
           <img src="https://cdn1.npcdn.net/images/np_24894_1690338503.png" alt="Tek Wee logo" className="brand-logo" />
           <div className="brand-name">TEK WEE HARDWARE &amp; LOGISTIC SDN BHD</div>
+          <button className="lang-toggle" onClick={toggleLang}>{t("langToggle")}</button>
         </div>
-        <div className="eyebrow">Fleet Fuel Log</div>
-        <h1>Lorry Fuel Tracker</h1>
-        <p className="sub">Log fuel fill-ups by station/card, lorry, and date. Filter records, track daily usage, and monitor each card &amp; station&apos;s monthly subsidy balance. Data is stored in a shared cloud database, so it&apos;s the same on every device.</p>
+        <div className="eyebrow">{t("eyebrowMain")}</div>
+        <h1>{t("appTitle")}</h1>
+        <p className="sub">{t("subMain")}</p>
       </header>
 
-      {error && <div className="banner error">Could not reach the database: {error}</div>}
-      {loading && <div className="banner info">Loading…</div>}
+      {error && <div className="banner error">{t("dbError", { msg: error })}</div>}
+      {loading && <div className="banner info">{t("loading")}</div>}
 
       <div className="card">
-        <h2>⛽ Diesel Price Today <span className="tag">— source: setel.com</span></h2>
-        {fuelPriceLoading && <div className="banner info">Loading fuel prices…</div>}
-        {fuelPriceError && !fuelPriceLoading && <div className="banner error">Could not load fuel prices: {fuelPriceError}</div>}
+        <h2>{t("dieselTitle")} <span className="tag">{t("dieselSource")}</span></h2>
+        {fuelPriceLoading && <div className="banner info">{t("dieselLoading")}</div>}
+        {fuelPriceError && !fuelPriceLoading && <div className="banner error">{t("dieselErrorPrefix", { msg: fuelPriceError })}</div>}
         {fuelPrice && !fuelPriceLoading && (
           <>
             <div className="summary-grid">
               <div className="stat">
-                <div className="label">Diesel B10 / B20</div>
+                <div className="label">{t("dieselLabel")}</div>
                 <div className="value">{fuelPrice.dieselB10B20 != null ? `RM ${fuelPrice.dieselB10B20.toFixed(2)}` : "—"}</div>
               </div>
             </div>
             {fuelPrice.effectiveFrom && fuelPrice.effectiveTo && (
-              <p className="sub" style={{marginTop:10}}>Effective {fuelPrice.effectiveFrom} to {fuelPrice.effectiveTo}. Pump price only (excludes Setel "harga budi" rewards price).</p>
+              <p className="sub" style={{marginTop:10}}>{t("dieselEffective", { from: fuelPrice.effectiveFrom, to: fuelPrice.effectiveTo })}</p>
             )}
           </>
         )}
       </div>
 
       <div className="card">
-        <h2><span className="n">1</span> Add Entry</h2>
+        <h2><span className="n">1</span> {t("addEntryTitle")}</h2>
         <div className="form-grid">
           <div className="field">
-            <label htmlFor="in-station">Company Station (Card)</label>
+            <label htmlFor="in-station">{t("companyStation")}</label>
             <select id="in-station" value={inStation} onChange={e => setInStation(e.target.value)}>
               {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="in-lorry">No Lorry</label>
+            <label htmlFor="in-lorry">{t("noLorry")}</label>
             <input type="text" id="in-lorry" placeholder="e.g. JQJ 7512" list="lorryList" value={inLorry} onChange={e => setInLorry(e.target.value)} />
             <datalist id="lorryList">
               {allLorries.map(l => <option key={l} value={l} />)}
             </datalist>
           </div>
           <div className="field">
-            <label htmlFor="in-date">Date</label>
+            <label htmlFor="in-date">{t("date")}</label>
             <input type="date" id="in-date" value={inDate} onChange={e => setInDate(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="in-litre">Litre</label>
+            <label htmlFor="in-litre">{t("litre")}</label>
             <input type="number" id="in-litre" placeholder="e.g. 120" step="0.01" min="0" value={inLitre} onChange={e => setInLitre(e.target.value)} />
           </div>
           <div className="field">
-            <button className="btn-primary" onClick={addEntry} disabled={busy}>+ Add Entry</button>
+            <button className="btn-primary" onClick={addEntry} disabled={busy}>{t("addEntryBtn")}</button>
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h2><span className="n">2</span> Filter</h2>
+        <h2><span className="n">2</span> {t("filterTitle")}</h2>
         <div className="form-grid">
           <div className="field">
-            <label htmlFor="f-station">Station / Card</label>
+            <label htmlFor="f-station">{t("stationCard")}</label>
             <select id="f-station" value={fStation} onChange={e => setFStation(e.target.value)}>
-              <option value="">All stations</option>
+              <option value="">{t("allStations")}</option>
               {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="f-lorry">Lorry</label>
+            <label htmlFor="f-lorry">{t("lorry")}</label>
             <select id="f-lorry" value={fLorry} onChange={e => setFLorry(e.target.value)}>
-              <option value="">All lorries</option>
+              <option value="">{t("allLorries")}</option>
               {allLorries.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="f-from">From date</label>
+            <label htmlFor="f-from">{t("fromDate")}</label>
             <input type="date" id="f-from" value={fFrom} onChange={e => setFFrom(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="f-to">To date</label>
+            <label htmlFor="f-to">{t("toDate")}</label>
             <input type="date" id="f-to" value={fTo} onChange={e => setFTo(e.target.value)} />
           </div>
           <div className="field">
-            <button className="btn-ghost" style={{width:"100%"}} onClick={clearFilters}>Clear filters</button>
+            <button className="btn-ghost" style={{width:"100%"}} onClick={clearFilters}>{t("clearFilters")}</button>
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h2><span className="n">3</span> Summary <span className="tag">{summaryScope}</span></h2>
+        <h2><span className="n">3</span> {t("summaryTitle")} <span className="tag">{summaryScope}</span></h2>
         <div className="summary-grid">
-          <div className="stat"><div className="label">Total Litre</div><div className="value">{summary.total.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Entries</div><div className="value">{summary.count}</div></div>
-          <div className="stat"><div className="label">Average / Entry</div><div className="value">{summary.avg.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Lorries Involved</div><div className="value">{summary.lorryCount}</div></div>
+          <div className="stat"><div className="label">{t("totalLitre")}</div><div className="value">{summary.total.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("entries")}</div><div className="value">{summary.count}</div></div>
+          <div className="stat"><div className="label">{t("avgPerEntry")}</div><div className="value">{summary.avg.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("lorriesInvolved")}</div><div className="value">{summary.lorryCount}</div></div>
         </div>
 
         {byStation.rows.length > 0 && (
           <div className="breakdown">
-            <div className="breakdown-title">By Station / Card</div>
+            <div className="breakdown-title">{t("byStationCard")}</div>
             {byStation.rows.map(([label, val]) => (
               <div className="bar-row" key={label}>
                 <div className="bar-label" title={label}>{label}</div>
@@ -417,7 +421,7 @@ export default function Page(){
         )}
         {byLorry.rows.length > 0 && (
           <div className="breakdown">
-            <div className="breakdown-title">By Lorry</div>
+            <div className="breakdown-title">{t("byLorry")}</div>
             {byLorry.rows.map(([label, val]) => (
               <div className="bar-row" key={label}>
                 <div className="bar-label" title={label}>{label}</div>
@@ -430,44 +434,44 @@ export default function Page(){
       </div>
 
       <div className="card">
-        <h2><span className="n">4</span> Daily Usage &amp; Subsidy Balance <span className="tag">— renews every month, per card/station</span></h2>
+        <h2><span className="n">4</span> {t("dailyUsageTitle")} <span className="tag">{t("renewsMonthly")}</span></h2>
         <div className="form-grid" style={{marginBottom:16}}>
           <div className="field">
-            <label htmlFor="m-month">Month</label>
+            <label htmlFor="m-month">{t("month")}</label>
             <input type="month" id="m-month" value={mMonth} onChange={e => setMMonth(e.target.value || currentMonthStr())} />
           </div>
           <div className="field">
-            <label htmlFor="m-lorry">Lorry (for daily table)</label>
+            <label htmlFor="m-lorry">{t("lorryForDaily")}</label>
             <select id="m-lorry" value={mLorry} onChange={e => setMLorry(e.target.value)}>
-              <option value="">All lorries (combined)</option>
+              <option value="">{t("allLorriesCombined")}</option>
               {allLorries.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
         </div>
 
         <div className="summary-grid" style={{marginBottom:16}}>
-          <div className="stat"><div className="label">Used This Month</div><div className="value">{monthData.monthTotal.toFixed(2)} L</div></div>
-          <div className="stat"><div className="label">Days With Usage</div><div className="value">{monthData.days.length}</div></div>
-          <div className="stat"><div className="label">Avg / Day Used</div><div className="value">{(monthData.days.length ? monthData.monthTotal/monthData.days.length : 0).toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("usedThisMonth")}</div><div className="value">{monthData.monthTotal.toFixed(2)} L</div></div>
+          <div className="stat"><div className="label">{t("daysWithUsage")}</div><div className="value">{monthData.days.length}</div></div>
+          <div className="stat"><div className="label">{t("avgPerDay")}</div><div className="value">{(monthData.days.length ? monthData.monthTotal/monthData.days.length : 0).toFixed(2)} L</div></div>
         </div>
 
-        <div className="breakdown-title">Daily Count (Litre per Day)</div>
+        <div className="breakdown-title">{t("dailyCountTitle")}</div>
         <table style={{marginBottom:20}}>
-          <thead><tr><th>Date</th><th>Litre Used</th></tr></thead>
+          <thead><tr><th>{t("date")}</th><th>{t("litreUsed")}</th></tr></thead>
           <tbody>
             {monthData.days.map(d => (
               <tr key={d}><td>{d}</td><td className="num">{monthData.byDay[d].toFixed(2)} L</td></tr>
             ))}
           </tbody>
         </table>
-        {monthData.days.length === 0 && <div className="empty-state">No usage recorded for this month.</div>}
+        {monthData.days.length === 0 && <div className="empty-state">{t("noUsageThisMonth")}</div>}
 
-        <div className="breakdown-title">Monthly Subsidy Balance — by Company Station (Card)</div>
-        <p className="sub" style={{marginBottom:4}}>BHP SN &amp; BHP SR are combined into one shared BHP line, and the 9 plate-numbered cards are combined into one shared Shell line. Usage is deducted strictly by which card was selected on each entry, regardless of which lorry used it. Quotas renew automatically every month — set once and they carry forward.</p>
-        <p className="sub" style={{marginBottom:4}}>Cards combined into BHP: BHP SN, BHP SR. Cards combined into Shell: {SHELL_CARDS.join(", ")}.</p>
-        {beforeStart && <p className="sub" style={{marginBottom:12,color:"var(--clay-dark)"}}>Note: quotas shown are the June 2026 starting values — this selected month is before June 2026.</p>}
+        <div className="breakdown-title">{t("monthlySubsidyTitle")}</div>
+        <p className="sub" style={{marginBottom:4}}>{t("subsidyDescMain")}</p>
+        <p className="sub" style={{marginBottom:4}}>{t("subsidyDescCards", { shellCards: SHELL_CARDS.join(", ") })}</p>
+        {beforeStart && <p className="sub" style={{marginBottom:12,color:"var(--clay-dark)"}}>{t("beforeStartNote")}</p>}
         <table>
-          <thead><tr><th>Station / Card</th><th>Type</th><th>Quota (L/month)</th><th>Used This Month</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th>{t("stationCard")}</th><th>{t("typeCol")}</th><th>{t("quotaCol")}</th><th>{t("usedThisMonth")}</th><th>{t("balanceCol")}</th><th>{t("statusCol")}</th></tr></thead>
           <tbody>
             {subsidyData.map(row => {
               const over = row.balance < 0;
@@ -481,14 +485,14 @@ export default function Page(){
                   </td>
                   <td className="num">{row.used.toFixed(2)} L</td>
                   <td className={"num" + (over ? " over" : "")}>{row.balance.toFixed(2)} L</td>
-                  <td><span className={"status-pill" + (over ? " over" : "")}>{over ? "OVER LIMIT" : "OK"}</span></td>
+                  <td><span className={"status-pill" + (over ? " over" : "")}>{over ? t("overLimit") : t("ok")}</span></td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr style={{fontWeight:700, background:"#efece2"}}>
-              <td>TOTAL LITER</td>
+              <td>{t("totalLiter")}</td>
               <td></td>
               <td className="num">{subsidyTotals.totalQuota.toFixed(2)} L</td>
               <td className="num">{subsidyTotals.totalUsed.toFixed(2)} L</td>
@@ -500,33 +504,33 @@ export default function Page(){
       </div>
 
       <div className="card">
-        <h2><span className="n">5</span> Records</h2>
+        <h2><span className="n">5</span> {t("recordsTitle")}</h2>
         <div className="form-grid" style={{marginBottom:14}}>
           <div className="field">
-            <label htmlFor="r-date">Jump to date</label>
+            <label htmlFor="r-date">{t("jumpToDate")}</label>
             <input type="date" id="r-date" value={rDate} onChange={e => { setRDate(e.target.value); if(e.target.value) setRMonth(""); }} />
           </div>
           <div className="field">
-            <label htmlFor="r-month">Jump to month</label>
+            <label htmlFor="r-month">{t("jumpToMonth")}</label>
             <input type="month" id="r-month" value={rMonth} onChange={e => { setRMonth(e.target.value); if(e.target.value) setRDate(""); }} />
           </div>
           <div className="field">
-            <button className="btn-ghost" style={{width:"100%"}} onClick={clearRecordQuickFilter} disabled={!rDate && !rMonth}>Clear date/month</button>
+            <button className="btn-ghost" style={{width:"100%"}} onClick={clearRecordQuickFilter} disabled={!rDate && !rMonth}>{t("clearDateMonth")}</button>
           </div>
         </div>
         <div className="toolbar">
-          <div className="count">{filtered.length} of {entries.length} entries</div>
+          <div className="count">{t("ofEntries", { filtered: filtered.length, total: entries.length })}</div>
           <div className="toolbar-actions">
-            <button className="btn-excel" onClick={exportExcel}>Export Excel ↓</button>
-            <button className="btn-ghost" onClick={exportCSV}>Export CSV ↓</button>
-            <button className="btn-ghost" onClick={clearAllData} disabled={busy}>Clear all data</button>
+            <button className="btn-excel" onClick={exportExcel}>{t("exportExcel")}</button>
+            <button className="btn-ghost" onClick={exportCSV}>{t("exportCSV")}</button>
+            <button className="btn-ghost" onClick={clearAllData} disabled={busy}>{t("clearAllData")}</button>
           </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>No Lorry</th><th>Station</th><th>Litre</th>
-              <th>Subsidy Usage (L)</th><th>Extra Usage After Subsidy (L)</th><th></th>
+              <th>{t("date")}</th><th>{t("noLorryCol")}</th><th>{t("stationCol")}</th><th>{t("litreCol")}</th>
+              <th>{t("subsidyUsageCol")}</th><th>{t("extraUsageCol")}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -540,14 +544,14 @@ export default function Page(){
                   <td className="num">{e.litre.toFixed(2)} L</td>
                   <td className="num">{sp.subsidyUsage.toFixed(2)} L</td>
                   <td className={"num" + (sp.extraUsage > 0 ? " over" : "")}>{sp.extraUsage.toFixed(2)} L</td>
-                  <td><button className="btn-danger" onClick={() => deleteEntry(e.id)} disabled={busy}>Delete</button></td>
+                  <td><button className="btn-danger" onClick={() => deleteEntry(e.id)} disabled={busy}>{t("delete")}</button></td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr style={{fontWeight:700, background:"#efece2"}}>
-              <td colSpan={3}>TOTAL</td>
+              <td colSpan={3}>{t("total")}</td>
               <td className="num">{totals.sumLitre.toFixed(2)} L</td>
               <td className="num">{totals.sumSubsidy.toFixed(2)} L</td>
               <td className="num">{totals.sumExtra.toFixed(2)} L</td>
@@ -555,28 +559,26 @@ export default function Page(){
             </tr>
           </tfoot>
         </table>
-        {filtered.length === 0 && <div className="empty-state">No records match your filters.</div>}
+        {filtered.length === 0 && <div className="empty-state">{t("noRecordsMatch")}</div>}
       </div>
 
       <div className="card">
-        <h2><span className="n">6</span> Backup &amp; Restore</h2>
-        <p className="sub" style={{marginBottom:14}}>Data lives in the shared cloud database, so it&apos;s already safe across devices and browsers. Use this to keep an offline copy, or to bring in entries from an older backup file.</p>
+        <h2><span className="n">6</span> {t("backupTitle")}</h2>
+        <p className="sub" style={{marginBottom:14}}>{t("backupDesc")}</p>
         <div className="toolbar-actions" style={{marginBottom:16}}>
-          <button className="btn-ghost" onClick={exportBackup}>⬇ Download Backup (JSON)</button>
+          <button className="btn-ghost" onClick={exportBackup}>{t("downloadBackup")}</button>
         </div>
         <div className="form-grid">
           <div className="field" style={{flex:"1 1 100%"}}>
-            <label htmlFor="importFile">Import Entries from a Backup File (.json)</label>
+            <label htmlFor="importFile">{t("importLabel")}</label>
             <input type="file" id="importFile" accept=".json,application/json" ref={fileInputRef} onChange={importBackup} />
-            <div className="hint">Entries from the file are added to the current cloud data — nothing existing is deleted or overwritten.</div>
+            <div className="hint">{t("importHint")}</div>
           </div>
         </div>
       </div>
 
       <footer>
-        All figures are self-reported entries stored in a shared Supabase database.
-        &quot;Export Excel&quot; produces a workbook with Records, Daily Usage, and Subsidy Balance as separate sheets, for the currently selected filters/month.
-        Subsidy quotas are set per card/station and renew automatically every month.
+        {t("footerMain")}
       </footer>
     </div>
   );
