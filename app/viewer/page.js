@@ -13,6 +13,8 @@ export default function ViewerPage(){
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [sMonth, setSMonth] = useState(currentMonthStr());
+
   const [mMonth, setMMonth] = useState(currentMonthStr());
   const [mLorry, setMLorry] = useState("");
 
@@ -66,9 +68,8 @@ export default function ViewerPage(){
   // Summary always shows the current calendar month, so it naturally
   // refreshes with fresh numbers whenever a new month starts.
   const summaryEntries = useMemo(() => {
-    const thisMonth = currentMonthStr();
-    return entries.filter(e => e.date.slice(0,7) === thisMonth);
-  }, [entries]);
+    return entries.filter(e => e.date.slice(0,7) === sMonth);
+  }, [entries, sMonth]);
 
   const summary = useMemo(() => {
     const total = summaryEntries.reduce((s,e) => s + e.litre, 0);
@@ -185,7 +186,13 @@ export default function ViewerPage(){
       {loading && <div className="banner info">{t("loading")}</div>}
 
       <div className="card">
-        <h2><span className="n">1</span> {t("summaryTitle")} <span className="tag">— {t("summaryThisMonth", { month: currentMonthStr() })}</span></h2>
+        <h2><span className="n">1</span> {t("summaryTitle")} <span className="tag">— {t("summaryThisMonth", { month: sMonth })}</span></h2>
+        <div className="form-grid" style={{marginBottom:16}}>
+          <div className="field">
+            <label htmlFor="s-month">{t("month")}</label>
+            <input type="month" id="s-month" value={sMonth} onChange={e => setSMonth(e.target.value || currentMonthStr())} />
+          </div>
+        </div>
         <div className="summary-grid">
           <div className="stat"><div className="label">{t("totalLitre")}</div><div className="value">{summary.total.toFixed(2)} L</div></div>
           <div className="stat"><div className="label">{t("entries")}</div><div className="value">{summary.count}</div></div>

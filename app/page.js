@@ -26,6 +26,8 @@ export default function Page(){
   const [fFrom, setFFrom] = useState("");
   const [fTo, setFTo] = useState("");
 
+  const [sMonth, setSMonth] = useState(currentMonthStr());
+
   const [mMonth, setMMonth] = useState(currentMonthStr());
   const [mLorry, setMLorry] = useState("");
 
@@ -140,8 +142,8 @@ export default function Page(){
   // An explicit date filter overrides this and shows that range instead.
   const summaryEntries = useMemo(() => {
     if(fFrom || fTo) return filtered;
-    return filtered.filter(e => e.date.slice(0,7) === currentMonthStr());
-  }, [filtered, fFrom, fTo]);
+    return filtered.filter(e => e.date.slice(0,7) === sMonth);
+  }, [filtered, fFrom, fTo, sMonth]);
 
   const summary = useMemo(() => {
     const total = summaryEntries.reduce((s,e) => s + e.litre, 0);
@@ -197,7 +199,7 @@ export default function Page(){
   if(fStation) scopeParts.push(fStation);
   if(fLorry) scopeParts.push(fLorry);
   if(fFrom || fTo) scopeParts.push(`${fFrom||"…"} → ${fTo||"…"}`);
-  else scopeParts.push(t("summaryThisMonth", { month: currentMonthStr() }));
+  else scopeParts.push(t("summaryThisMonth", { month: sMonth }));
   const summaryScope = "— " + scopeParts.join(" · ");
 
   const beforeStart = mMonth < QUOTA_START_MONTH;
@@ -412,6 +414,12 @@ export default function Page(){
 
       <div className="card">
         <h2><span className="n">3</span> {t("summaryTitle")} <span className="tag">{summaryScope}</span></h2>
+        <div className="form-grid" style={{marginBottom:16}}>
+          <div className="field">
+            <label htmlFor="s-month">{t("month")}</label>
+            <input type="month" id="s-month" value={sMonth} onChange={e => setSMonth(e.target.value || currentMonthStr())} disabled={!!(fFrom || fTo)} />
+          </div>
+        </div>
         <div className="summary-grid">
           <div className="stat"><div className="label">{t("totalLitre")}</div><div className="value">{summary.total.toFixed(2)} L</div></div>
           <div className="stat"><div className="label">{t("entries")}</div><div className="value">{summary.count}</div></div>
