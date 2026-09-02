@@ -63,23 +63,30 @@ export default function ViewerPage(){
     return { sumLitre, sumSubsidy, sumExtra };
   }, [filtered, splits]);
 
-  const summary = useMemo(() => {
-    const total = entries.reduce((s,e) => s + e.litre, 0);
-    const count = entries.length;
-    const avg = count ? total / count : 0;
-    const lorrySet = new Set(entries.map(e => e.lorry));
-    return { total, count, avg, lorryCount: lorrySet.size };
+  // Summary always shows the current calendar month, so it naturally
+  // refreshes with fresh numbers whenever a new month starts.
+  const summaryEntries = useMemo(() => {
+    const thisMonth = currentMonthStr();
+    return entries.filter(e => e.date.slice(0,7) === thisMonth);
   }, [entries]);
 
-  function breakdown(key){
+  const summary = useMemo(() => {
+    const total = summaryEntries.reduce((s,e) => s + e.litre, 0);
+    const count = summaryEntries.length;
+    const avg = count ? total / count : 0;
+    const lorrySet = new Set(summaryEntries.map(e => e.lorry));
+    return { total, count, avg, lorryCount: lorrySet.size };
+  }, [summaryEntries]);
+
+  function breakdown(list, key){
     const map = {};
-    entries.forEach(e => { map[e[key]] = (map[e[key]] || 0) + e.litre; });
+    list.forEach(e => { map[e[key]] = (map[e[key]] || 0) + e.litre; });
     const rows = Object.entries(map).sort((a,b) => b[1]-a[1]);
     const maxVal = rows.length ? rows[0][1] : 0;
     return { rows, maxVal };
   }
-  const byStation = useMemo(() => breakdown("station"), [entries]);
-  const byLorry = useMemo(() => breakdown("lorry"), [entries]);
+  const byStation = useMemo(() => breakdown(summaryEntries, "station"), [summaryEntries]);
+  const byLorry = useMemo(() => breakdown(summaryEntries, "lorry"), [summaryEntries]);
 
   const monthData = useMemo(() => {
     const inMonth = entries.filter(e => e.date.slice(0,7) === mMonth && (!mLorry || e.lorry === mLorry));
@@ -178,7 +185,7 @@ export default function ViewerPage(){
       {loading && <div className="banner info">{t("loading")}</div>}
 
       <div className="card">
-        <h2><span className="n">1</span> {t("summaryTitle")} <span className="tag">{t("allRecords")}</span></h2>
+        <h2><span className="n">1</span> {t("summaryTitle")} <span className="tag">— {t("summaryThisMonth", { month: currentMonthStr() })}</span></h2>
         <div className="summary-grid">
           <div className="stat"><div className="label">{t("totalLitre")}</div><div className="value">{summary.total.toFixed(2)} L</div></div>
           <div className="stat"><div className="label">{t("entries")}</div><div className="value">{summary.count}</div></div>

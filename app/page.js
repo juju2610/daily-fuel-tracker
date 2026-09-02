@@ -135,23 +135,31 @@ export default function Page(){
     return { sumLitre, sumSubsidy, sumExtra };
   }, [filtered, splits]);
 
-  const summary = useMemo(() => {
-    const total = filtered.reduce((s,e) => s + e.litre, 0);
-    const count = filtered.length;
-    const avg = count ? total / count : 0;
-    const lorrySet = new Set(filtered.map(e => e.lorry));
-    return { total, count, avg, lorryCount: lorrySet.size };
-  }, [filtered]);
+  // Summary defaults to the current calendar month so it naturally
+  // refreshes (shows fresh numbers) whenever a new month starts.
+  // An explicit date filter overrides this and shows that range instead.
+  const summaryEntries = useMemo(() => {
+    if(fFrom || fTo) return filtered;
+    return filtered.filter(e => e.date.slice(0,7) === currentMonthStr());
+  }, [filtered, fFrom, fTo]);
 
-  function breakdown(key){
+  const summary = useMemo(() => {
+    const total = summaryEntries.reduce((s,e) => s + e.litre, 0);
+    const count = summaryEntries.length;
+    const avg = count ? total / count : 0;
+    const lorrySet = new Set(summaryEntries.map(e => e.lorry));
+    return { total, count, avg, lorryCount: lorrySet.size };
+  }, [summaryEntries]);
+
+  function breakdown(list, key){
     const map = {};
-    filtered.forEach(e => { map[e[key]] = (map[e[key]] || 0) + e.litre; });
+    list.forEach(e => { map[e[key]] = (map[e[key]] || 0) + e.litre; });
     const rows = Object.entries(map).sort((a,b) => b[1]-a[1]);
     const maxVal = rows.length ? rows[0][1] : 0;
     return { rows, maxVal };
   }
-  const byStation = useMemo(() => breakdown("station"), [filtered]);
-  const byLorry = useMemo(() => breakdown("lorry"), [filtered]);
+  const byStation = useMemo(() => breakdown(summaryEntries, "station"), [summaryEntries]);
+  const byLorry = useMemo(() => breakdown(summaryEntries, "lorry"), [summaryEntries]);
 
   const monthData = useMemo(() => {
     const inMonth = entries.filter(e => e.date.slice(0,7) === mMonth && (!mLorry || e.lorry === mLorry));
@@ -189,7 +197,8 @@ export default function Page(){
   if(fStation) scopeParts.push(fStation);
   if(fLorry) scopeParts.push(fLorry);
   if(fFrom || fTo) scopeParts.push(`${fFrom||"…"} → ${fTo||"…"}`);
-  const summaryScope = scopeParts.length ? "— " + scopeParts.join(" · ") : t("allRecords");
+  else scopeParts.push(t("summaryThisMonth", { month: currentMonthStr() }));
+  const summaryScope = "— " + scopeParts.join(" · ");
 
   const beforeStart = mMonth < QUOTA_START_MONTH;
 
